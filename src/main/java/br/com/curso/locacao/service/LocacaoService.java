@@ -12,10 +12,15 @@ import br.com.curso.locacao.exceptions.LocadoraException;
 import br.com.curso.locacao.model.Filme;
 import br.com.curso.locacao.model.Locacao;
 import br.com.curso.locacao.model.Usuario;
+import br.com.curso.locacao.repository.LocacaoRepository;
 import br.com.curso.locacao.util.DataUtils;
 
 public class LocacaoService {
-
+	
+	private LocacaoRepository repository;
+	private SPCService spcService;
+	private EmailService emailService;
+	
 	public Locacao alugarFilme(Usuario usuario, List<Filme> filmes) throws FilmeSemEstoqueException, LocadoraException {
 
 		Optional<Usuario> user = Optional.ofNullable(usuario);
@@ -34,6 +39,10 @@ public class LocacaoService {
 				throw new FilmeSemEstoqueException();
 			}
 
+		}
+		
+		if(spcService.verificaUsuarioNegativado(usuario)) {
+			throw new LocadoraException("Usuario negativado");
 		}
 
 		Locacao locacao = new Locacao();
@@ -72,15 +81,28 @@ public class LocacaoService {
 		if (DataUtils.verificarDiaSemana(dataEntrega, Calendar.SUNDAY)) {
 			dataEntrega = adicionarDias(dataEntrega, 1);
 		}
+		
 		locacao.setDataRetorno(dataEntrega);
 
 		// Salvando a locacao...
 		// TODO adicionar método para salvar
+		repository.salvar(locacao);
 
 		return locacao;
 	}
-
-	public static void main(String[] args) {
-
+	
+	
+	public void enviarNotificacoesParaLocacoesAtrasadas() {
+		
+		List<Locacao> locacoes = repository.obterLocacoesAtrasadas();
+		
+		for (Locacao locacao : locacoes) {
+			emailService.enviarNotificacoes(locacao.getUsuario());
+		}
+		
 	}
+	
+
+
+	
 }
